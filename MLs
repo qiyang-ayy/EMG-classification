@@ -1,0 +1,140 @@
+"""
+class MLs - Machine Learning methods, for verifying method validity
+Gaussian Naive Bayes, Decision Tree, Logistic Regression, Linear Discriminant Analysis
+Stochastic Gradient Decent, Random Forest, Gradient Boosting, KNN and SVM
+
+Inputs:
+data - feature matrix -> matrix
+N - # of testing samples -> int
+
+Functions:
+divideData - divide data into traing data and testing data
+autoNorm - normalization
+RocCurve - calculate fpr, tpr, roc_auc of ROC cure from test and score
+RocPlot - draw ROC curve of all methods
+
+Methods:
+divideData - divide the data into N training data and N' testing data
+GNB - Gaussian Naive Bayes
+desionTree - Decision Tree
+logisticRegression - Logistic Regression, solver = 'liblinear', multi_class = 'auto' 
+LDA - linear Discriminant Analysis
+SGD - Stochastic Gradient Decent, loss = "modified_huber", penalty = "l1" 
+randomForest - Random Forest, n_estimators = 100
+gradientBoost - Gradient Bossting, n_estimators = 100
+KNN - KNN, algorithm = 'ball_tree', n_neighbors = 10
+SVM - Support Vector Machine, linear SVM, random_state = 0
+"""
+
+import random as rd
+from sklearn.metrics import roc_curve, auc
+from sklearn.preprocessing import label_binarize
+from sklearn.naive_bayes import GaussianNB
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.linear_model import SGDClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import LinearSVC
+
+# data = ( pd.read_csv( 'feature matrix.csv' ) ).values
+class MLs:
+    def __init__():
+        return
+    
+    def divideData(self, data, N):
+        index1 = sorted(rd.sample(range(len(data)), N))
+        index2 = [x for x in range(len(data)) if x not in index1]
+        data1 = data[index1]
+        data2 = data[index2]
+        trainData, trainLabel, testData, testLabel = [], [], [], []
+        for tmp in data1:
+            trainData.append(tmp[1:-1])
+            trainLabel.append(tmp[-1])
+        for tmp in data2:
+            testData.append(tmp[1:-1])
+            testLabel.append(tmp[-1])
+        return trainData, trainLabel, testData, testLabel
+    
+    def autoNorm(self, dataSet):
+        label = [x[-1] for x in dataSet]
+        minVals = dataSet.min(0)
+        maxVals = dataSet.max(0)
+        ranges = maxVals - minVals
+        normDataSet = np.zeros(np.shape(dataSet))
+        m = dataSet.shape[0]
+        normDataSet = (dataSet - np.tile(minVals, (m, 1))) / np.tile(ranges, (m, 1))   #element wise divide
+        normDataSet = np.delete(normDataSet, -1, axis = 1)
+        normDataSet = np.append(normDataSet, np.array(label).reshape((len(label)), 1), axis = 1)
+        return normDataSet, ranges, minVals
+    
+    def RocCurve(self, test, score):
+        fpr = dict()
+        tpr = dict()
+        roc_auc = dict()
+        N = len(test[0])
+        for i in range(N):
+            fpr[i], tpr[i], _ = roc_curve(test[:, i], score[:, i])
+            roc_auc[i] = auc(fpr[i], tpr[i])
+        # Compute micro-average ROC curve and ROC area
+        fpr["micro"], tpr["micro"], _ = roc_curve(test.ravel(), score.ravel())
+        roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+        return fpr, tpr, roc_auc
+    
+    def RocPlot(self, data, N):
+        _, fprGnb, tprGnb, aucGnb = self.classifier(data, N, 'GNB')
+        _, fprDt, tprDt, aucDt = self.classifier(data, N, 'decisionTree')
+        _, fprLr, tprLr, aucLr = self.classifier(data, N, 'logisticRegression')
+        _, fprLda, tprLda, aucLda = self.classifier(data, N, 'LDA')
+        _, fprSgd, tprSgd, aucSgd = self.classifier(data, N, 'SGD')
+        _, fprRf, tprRf, aucRf = self.classifier(data, N, 'randomForest')
+        _, fprGb, tprGb, aucGb = self.classifier(data, N, 'gradientBoost')
+        _, fprKnn, tprKnn, aucKnn = self.classifier(data, N, 'kNN')
+        _, fprSvm, tprSvm, aucSvm = self.classifier(data, N, 'SVM')
+        methods = [ 'Gnb', 'Dt', 'Lr', 'Lda', 'Sgd', 'Rf', 'Gb', 'Knn', 'Svm' ]
+        for m in methods: # eval - transfer srt into variable
+            x, y, auc = eval('fpr' + m)['micro'], eval('tpr' + m)['micro'], eval('auc' + m)['micro']
+            plt.plot(x, y, lw = 2, label = '{0:s} (area = {1:0.4f})'.format(m, auc))
+        plt.plot([0, 1], [0, 1], 'k--', lw = 2)
+        plt.xlim([-0.05, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('Micro-average ROC curve of Multi-class of different algorithms')
+        plt.legend(loc  = 'lower right')
+        plt.show()
+    
+    def classifier(self, data, N, method):
+        if method == 'GNB':
+            clf = GaussianNB()
+        elif method == 'decisionTree':
+            clf = DecisionTreeClassifier()
+        elif method == 'lr':
+            clf = LogisticRegression(solver = 'liblinear', multi_class = 'auto')
+        elif method == 'LDA':
+            clf = LinearDiscriminantAnalysis()
+        elif method == 'SGD':
+            clf = SGDClassifier(loss = "modified_huber", penalty = "l1")
+        elif method == 'randomForest':
+            clf = RandomForestClassifier(n_estimators = 100)
+        elif method == 'gradientBoost':
+            clf = GradientBoostingClassifier(n_estimators = 100)
+        elif method == 'kNN':
+            data, _, _ = self.autoNorm(data)
+            clf = KNeighborsClassifier(algorithm = 'ball_tree', n_neighbors = 10)
+        elif method == 'SVM':
+            data, _, _ = self.autoNorm(data)
+            clf = LinearSVC(random_state = 0)
+        trainData, trainLabel, testData, testLabel = self.divideData(data, N)
+        output = clf.fit(trainData, trainLabel).predict(testData)
+        n, Num = 0, len(testData)
+        for i in range(Num):
+            if output[i] == testLabel[i]:
+                n += 1
+        accuracy = n / Num
+        yscore = clf.fit(trainData, trainLabel).predict_proba(testData)
+        ytest = label_binarize(testLabel, classes = [1, 2, 3, 4, 5, 6])
+        fpr, tpr, roc_auc = self.RocCurve(ytest, yscore)
+        return accuracy, fpr, tpr, roc_auc
